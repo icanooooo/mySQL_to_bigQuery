@@ -8,7 +8,7 @@ def ingest_data_mysql():
     query = """SELECT
                     *
                 FROM player_allstar
-                WHERE season_id BETWEEN 1981 AND 1983"""
+                WHERE season_id = 1981"""
 
     dataframe = ingest_mysql("db.relational-data.org",
                                 "guest",
