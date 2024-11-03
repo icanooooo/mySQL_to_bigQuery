@@ -1,0 +1,9 @@
+.env
+
+*.pyc
+
+/keys
+
+/reference
+
+/var

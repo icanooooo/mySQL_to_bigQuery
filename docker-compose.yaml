@@ -1,0 +1,80 @@
+services:  
+  postgres:
+    image: postgres:latest
+    networks:
+      - elt_network
+    environment:
+      - POSTGRES_USER=icanooo
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d airflow -U icanooo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  init_airflow:
+    image: apache/airflow:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./scripts/init_airflow.sh:/scripts/init_airflow.sh
+    networks:
+      - elt_network
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://icanooo:airflow@postgres/airflow
+    entrypoint: ["/bin/bash", "/scripts/init_airflow.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "airflow db check"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: root
+    depends_on:
+      init_airflow:
+        condition: service_healthy
+    networks:
+      - elt_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./var/run/docker.sock:/var/run/docker.sock
+      - ./elt:/opt/airflow/elt
+      - ./keys/bigquery-project.json:/opt/airflow/keys/bigquery-project.json
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    command: webserver
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: root
+    depends_on:
+      init_airflow:
+        condition: service_healthy
+    networks:
+      - elt_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./var/run/docker.sock:/var/run/docker.sock
+      - ./elt:/opt/airflow/elt
+      - ./keys/bigquery-project.json:/opt/airflow/keys/bigquery-project.json
+    env_file:
+      - .env
+    command: scheduler
+
+networks:
+  elt_network:
+    driver: bridge
