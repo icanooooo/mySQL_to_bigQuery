@@ -1,7 +1,7 @@
 from airflow import DAG
 from datetime import datetime
 from airflow.operators.python import PythonOperator
-from helper.bigquery_helper import create_client, load_bigquery, create_table, create_schema
+from helper.bigquery_helper import create_client, load_bigquery, create_table_with_time_partition, create_schema
 from helper.mysql_helper import ingest_mysql
 
 def ingest_data_mysql():
@@ -16,6 +16,8 @@ def ingest_data_mysql():
                                 "Basketball_men",
                                 query
                                 )
+        
+    dataframe['ingestion_date'] = datetime.now()
 
     return dataframe
 
@@ -24,8 +26,8 @@ def load_data_bigquery(**kwargs):
     dataframe = kwargs['ti'].xcom_pull(task_ids='extract_mysql')
     table_id = "purwadika.ihsan.meet-39_muhammad-ihsan"
     
-    create_table(client, table_id, create_schema(dataframe))
-    load_bigquery(client, dataframe, table_id)
+    create_table_with_time_partition(client, table_id, create_schema(dataframe), 'ingestion_date')
+    load_bigquery(client, dataframe, table_id, 'ingestion_date')
 
     print(f"loaded {dataframe.shape[0]} rows to {table_id}")
 

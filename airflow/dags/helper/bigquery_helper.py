@@ -63,16 +63,24 @@ def create_table_with_time_partition(client, table_id, schema, partition_col):
         )
         client.create_table(table)
         print("Loaded table to bigQuery! ")
-    except:
-        client.get_table(table_id)
-        print(f"Table `{table_id}` already exist")
+    except Exception as e:
+        if "Already exist" in e:
+            client.get_table(table_id)
+            print(f"Table `{table_id}` already exist")
+        else:
+            print(e)
 
 # Loading data to bigQuery
-def load_bigquery(client, dataframe, table_id):
+def load_bigquery(client, dataframe, table_id, partition_field=None):
     job_config = bigquery.LoadJobConfig(
         schema = create_schema(dataframe),
         write_disposition="WRITE_TRUNCATE",
     )
+
+    if partition_field:
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            field=partition_field
+        )
 
     job = client.load_table_from_dataframe(
         dataframe, table_id, job_config=job_config
