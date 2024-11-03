@@ -1,14 +1,14 @@
 from airflow import DAG
 from datetime import datetime
 from airflow.operators.python import PythonOperator
-from helper.bigquery_helper import create_client, load_bigquery, create_table, create_schema
+from helper.bigquery_helper import create_client, load_bigquery, create_table_with_time_partition, create_schema
 from helper.mysql_helper import ingest_mysql
 
 def ingest_data_mysql():
     query = """SELECT
                     *
                 FROM player_allstar
-                WHERE season_id = 1981"""
+                WHERE season_id = 1985"""
 
     dataframe = ingest_mysql("db.relational-data.org",
                                 "guest",
@@ -17,6 +17,8 @@ def ingest_data_mysql():
                                 query
                                 )
         
+    dataframe['ingestion_date'] = datetime.now()
+
     return dataframe
 
 def load_data_bigquery(**kwargs):
@@ -24,7 +26,7 @@ def load_data_bigquery(**kwargs):
     dataframe = kwargs['ti'].xcom_pull(task_ids='extract_mysql')
     table_id = "purwadika.ihsan.meet-39_muhammad-ihsan"
     
-    create_table(client, table_id, create_schema(dataframe))
+    create_table_with_time_partition(client, table_id, create_schema(dataframe), 'ingestion_date')
     load_bigquery(client, dataframe, table_id)
 
     print(f"loaded {dataframe.shape[0]} rows to {table_id}")
