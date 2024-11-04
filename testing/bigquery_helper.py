@@ -1,14 +1,17 @@
 from google.cloud import bigquery
+from google.oauth2 import service_account
 from google.auth import default
 import pandas as pd
 
 #Creating client
-def create_client():
-    scopes=["https://www.googleapis.com/auth/cloud-platform"]
+def create_client(creds):
+    credentials = service_account.Credentials.from_service_account_file(
+        creds,
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    )
 
-    credentials, _ = default(scopes=scopes)
-
-    client = bigquery.Client(credentials=credentials)
+    client = bigquery.Client(credentials=credentials,
+                             project=credentials.project_id)
 
     return client
 
@@ -44,28 +47,33 @@ def create_schema(dataframe):
 
 
 # Creating table
-def create_table(client, table_id, schema, partition_col=None):
+def create_table(client, table_id, schema):
     try:
         table = bigquery.Table(table_ref=table_id, schema=schema)
-
-        if partition_col:
-            table.time_partitioning = bigquery.TimePartitioning(
-                type_=bigquery.TimePartitioningType.DAY,
-                field=partition_col
-            )            
-
         client.create_table(table)
         print("Loaded table to bigQuery! ")
     except:
         client.get_table(table_id)
         print(f"Table `{table_id}` already exist")
 
+def create_table_with_time_partition(client, table_id, schema, partition_col):
+    try:
+        table = bigquery.Table(table_ref=table_id, schema=schema)
+
+        table.time_partitioning = bigquery.TimePartitioning(
+            type_=bigquery.TimePartitioningType.DAY,
+            field=partition_col
+        )
+        client.create_table(table)
+        print("Loaded table to bigQuery! ")
+    except Exception as e:
+        print(e)
 
 # Loading data to bigQuery
-def load_bigquery(client, dataframe, table_id, mode, partition_field=None):
+def load_bigquery(client, dataframe, table_id, partition_field=None):
     job_config = bigquery.LoadJobConfig(
         schema = create_schema(dataframe),
-        write_disposition=mode,
+        write_disposition="WRITE_TRUNCATE",
     )
 
     if partition_field:
