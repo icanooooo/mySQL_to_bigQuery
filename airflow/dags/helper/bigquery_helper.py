@@ -63,6 +63,9 @@ def create_table(client, table_id, schema, partition_col=None):
 
 # Loading data to bigQuery
 def load_bigquery(client, dataframe, table_id, mode, partition_field=None):
+    # Akan print table already exist jika ada
+    create_table(client, table_id, create_schema(dataframe), partition_field)
+
     job_config = bigquery.LoadJobConfig(
         schema = create_schema(dataframe),
         write_disposition=mode,

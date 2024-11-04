@@ -26,8 +26,6 @@ def load_data_bigquery(**kwargs):
     dataframe = kwargs['ti'].xcom_pull(task_ids='extract_mysql')
     table_id = "purwadika.ihsan.meet-39_muhammad-ihsan"
     
-    # Creating table with partition
-    create_table(client, table_id, create_schema(dataframe), 'ingestion_time')
     load_bigquery(client, dataframe, table_id, "WRITE_APPEND", 'ingestion_time')
 
     print(f"loaded {dataframe.shape[0]} rows to {table_id}")
